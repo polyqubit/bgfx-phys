@@ -10,10 +10,6 @@
 #include "imgui.h"
 #include "sdl-imgui/imgui_impl_sdl2.h"
 
-#if BX_PLATFORM_EMSCRIPTEN
-#include "emscripten.h"
-#endif // BX_PLATFORM_EMSCRIPTEN
-
 struct PosColorVertex
 {
     float x;
@@ -27,11 +23,19 @@ static PosColorVertex cube_vertices[] = {
     {-1.0f, -1.0f, 1.0f, 0xff00ff00},  {1.0f, -1.0f, 1.0f, 0xff00ffff},
     {-1.0f, 1.0f, -1.0f, 0xffff0000},  {1.0f, 1.0f, -1.0f, 0xffff00ff},
     {-1.0f, -1.0f, -1.0f, 0xffffff00}, {1.0f, -1.0f, -1.0f, 0xffffffff},
+
+    /*{1.0f, 1.0f, 1.0f, 0xff000000},    {3.0f, 1.0f, 1.0f, 0xff0000ff},
+    {1.0f, -1.0f, 1.0f, 0xff00ff00},   {3.0f, -1.0f, 1.0f, 0xff00ffff},
+    {1.0f, 1.0f, -1.0f, 0xffff0000},   {3.0f, 1.0f, -1.0f, 0xffff00ff},
+    {1.0f, -1.0f, -1.0f, 0xffffff00},  {3.0f, -1.0f, -1.0f, 0xffffffff},*/
 };
 
 static const uint16_t cube_tri_list[] = {
     0, 1, 2, 1, 3, 2, 4, 6, 5, 5, 6, 7, 0, 2, 4, 4, 2, 6,
     1, 5, 3, 5, 7, 3, 0, 4, 1, 4, 5, 1, 2, 3, 6, 6, 3, 7,
+
+    /*8, 9, 10, 9, 11, 10, 12, 14, 13, 13, 14, 15, 8, 10, 12, 12, 10, 14,
+    9, 13, 11, 13, 15, 11, 8, 12, 9, 12, 13, 9, 10, 11, 14, 14, 11, 15,*/
 };
 
 static bgfx::ShaderHandle create_shader(
@@ -116,22 +120,19 @@ void main_loop(void* data)
 
     bgfx::setViewTransform(0, view, proj);
 
-    float model[16];
-    bx::mtxIdentity(model);
-    bgfx::setTransform(model);
+    for (int i = 0; i < 3; i++) {
+        float model[16];
+        bx::mtxIdentity(model);
+        model[13] = float(i*2);
+        bgfx::setTransform(model);
 
-    bgfx::setVertexBuffer(0, context->vbh);
-    bgfx::setIndexBuffer(context->ibh);
+        bgfx::setVertexBuffer(0, context->vbh);
+        bgfx::setIndexBuffer(context->ibh);
 
-    bgfx::submit(0, context->program);
+        bgfx::submit(0, context->program);
+    }
 
     bgfx::frame();
-
-#if BX_PLATFORM_EMSCRIPTEN
-    if (context->quit) {
-        emscripten_cancel_main_loop();
-    }
-#endif
 }
 
 int main(int argc, char** argv)
@@ -141,8 +142,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    const int width = 800;
-    const int height = 600;
+    const int width = 1100;
+    const int height = 700;
     SDL_Window* window = SDL_CreateWindow(
         argv[0], SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width,
         height, SDL_WINDOW_SHOWN);
@@ -152,7 +153,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-#if !BX_PLATFORM_EMSCRIPTEN
     SDL_SysWMinfo wmi;
     SDL_VERSION(&wmi.version);
     if (!SDL_GetWindowWMInfo(window, &wmi)) {
@@ -162,20 +162,9 @@ int main(int argc, char** argv)
         return 1;
     }
     bgfx::renderFrame(); // single threaded mode
-#endif // !BX_PLATFORM_EMSCRIPTEN
 
     bgfx::PlatformData pd{};
-#if BX_PLATFORM_WINDOWS
     pd.nwh = wmi.info.win.window;
-#elif BX_PLATFORM_OSX
-    pd.nwh = wmi.info.cocoa.window;
-#elif BX_PLATFORM_LINUX
-    pd.ndt = wmi.info.x11.display;
-    pd.nwh = (void*)(uintptr_t)wmi.info.x11.window;
-#elif BX_PLATFORM_EMSCRIPTEN
-    pd.nwh = (void*)"#canvas";
-#endif // BX_PLATFORM_WINDOWS ? BX_PLATFORM_OSX ? BX_PLATFORM_LINUX ?
-       // BX_PLATFORM_EMSCRIPTEN
 
     bgfx::Init bgfx_init;
     bgfx_init.type = bgfx::RendererType::Count; // auto choose renderer
@@ -192,14 +181,7 @@ int main(int argc, char** argv)
     ImGui::CreateContext();
 
     ImGui_Implbgfx_Init(255);
-#if BX_PLATFORM_WINDOWS
     ImGui_ImplSDL2_InitForD3D(window);
-#elif BX_PLATFORM_OSX
-    ImGui_ImplSDL2_InitForMetal(window);
-#elif BX_PLATFORM_LINUX || BX_PLATFORM_EMSCRIPTEN
-    ImGui_ImplSDL2_InitForOpenGL(window, nullptr);
-#endif // BX_PLATFORM_WINDOWS ? BX_PLATFORM_OSX ? BX_PLATFORM_LINUX ?
-       // BX_PLATFORM_EMSCRIPTEN
 
     bgfx::VertexLayout pos_col_vert_layout;
     pos_col_vert_layout.begin()
@@ -212,12 +194,7 @@ int main(int argc, char** argv)
     bgfx::IndexBufferHandle ibh = bgfx::createIndexBuffer(
         bgfx::makeRef(cube_tri_list, sizeof(cube_tri_list)));
 
-    const std::string shader_root =
-#if BX_PLATFORM_EMSCRIPTEN
-        "shader/embuild/";
-#else
-        "shader/build/";
-#endif // BX_PLATFORM_EMSCRIPTEN
+    const std::string shader_root = "shader/build/";
 
     std::string vshader;
     if (!fileops::read_file(shader_root + "v_simple.bin", vshader)) {
@@ -247,13 +224,9 @@ int main(int argc, char** argv)
     context.vbh = vbh;
     context.ibh = ibh;
 
-#if BX_PLATFORM_EMSCRIPTEN
-    emscripten_set_main_loop_arg(main_loop, &context, -1, 1);
-#else
     while (!context.quit) {
         main_loop(&context);
     }
-#endif // BX_PLATFORM_EMSCRIPTEN
 
     bgfx::destroy(vbh);
     bgfx::destroy(ibh);
