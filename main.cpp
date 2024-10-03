@@ -10,6 +10,8 @@
 #include "imgui.h"
 #include "sdl-imgui/imgui_impl_sdl2.h"
 
+#include "shapes.hpp"
+
 struct PosColorVertex
 {
     float x;
@@ -47,7 +49,7 @@ static bgfx::ShaderHandle create_shader(
     return handle;
 }
 
-static void imgui_controller(float* speed)
+static void imgui_controller(double* speed)
 {
     ImGui_Implbgfx_NewFrame();
     ImGui_ImplSDL2_NewFrame();
@@ -55,7 +57,7 @@ static void imgui_controller(float* speed)
     ImGui::NewFrame();
     
     ImGui::Begin("Controller");
-    ImGui::InputFloat("Speed", speed);
+    ImGui::InputDouble("Speed", speed);
     ImGui::End();
 
     ImGui::Render();
@@ -81,8 +83,8 @@ struct context_t
 
     long t = 0;
 
-    float speed = 0.0f; // PUT INTO SEPARATE OBJECT CLASS !!!!!
-    float position = 0.0f;
+    double speed = 0.0; // PUT INTO SEPARATE OBJECT CLASS !!!!!
+    double position = 0.0;
 
     bool quit = false;
 };
@@ -168,6 +170,8 @@ int main(int argc, char** argv)
         printf("SDL could not initialize. SDL_Error: %s\n", SDL_GetError());
         return 1;
     }
+
+    shapes::hello();
 
     const int width = 1100;
     const int height = 700;

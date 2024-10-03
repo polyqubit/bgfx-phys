@@ -1,0 +1,8 @@
+create a datastructure called "scene"
+  - this will hold all objects
+
+object
+  - position and velocity
+  - type(point mass, rod etc)
+  - object should not have any graphics code
+  - enum based interpretation?
