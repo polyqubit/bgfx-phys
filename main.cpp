@@ -47,6 +47,21 @@ static bgfx::ShaderHandle create_shader(
     return handle;
 }
 
+static void imgui_controller(float* speed)
+{
+    ImGui_Implbgfx_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+
+    ImGui::NewFrame();
+    
+    ImGui::Begin("Controller");
+    ImGui::InputFloat("Speed", speed);
+    ImGui::End();
+
+    ImGui::Render();
+    ImGui_Implbgfx_RenderDrawLists(ImGui::GetDrawData());
+}
+
 struct context_t
 {
     SDL_Window* window = nullptr;
@@ -64,12 +79,20 @@ struct context_t
     int width = 0;
     int height = 0;
 
+    long t = 0;
+
+    float speed = 0.0f; // PUT INTO SEPARATE OBJECT CLASS !!!!!
+    float position = 0.0f;
+
     bool quit = false;
 };
 
 void main_loop(void* data)
 {
     auto context = static_cast<context_t*>(data);
+
+    context->t++;
+    context->position += context->speed * 0.1;
 
     for (SDL_Event current_event; SDL_PollEvent(&current_event) != 0;) {
         ImGui_ImplSDL2_ProcessEvent(&current_event);
@@ -79,13 +102,7 @@ void main_loop(void* data)
         }
     }
 
-    ImGui_Implbgfx_NewFrame();
-    ImGui_ImplSDL2_NewFrame();
-
-    ImGui::NewFrame();
-    ImGui::ShowDemoWindow(); // your drawing here
-    ImGui::Render();
-    ImGui_Implbgfx_RenderDrawLists(ImGui::GetDrawData());
+    imgui_controller(&context->speed);
 
     if (!ImGui::GetIO().WantCaptureMouse) {
         // simple input code for orbit camera
@@ -120,7 +137,7 @@ void main_loop(void* data)
 
     bgfx::setViewTransform(0, view, proj);
 
-    for (int i = 0; i < 3; i++) {
+    /*for (int i = 0; i < 3; i++) {
         float model[16];
         bx::mtxIdentity(model);
         model[13] = float(i*2);
@@ -130,7 +147,17 @@ void main_loop(void* data)
         bgfx::setIndexBuffer(context->ibh);
 
         bgfx::submit(0, context->program);
-    }
+    }*/
+
+    float model[16];
+    bx::mtxIdentity(model);
+    model[12] = context->position;
+    bgfx::setTransform(model);
+
+    bgfx::setVertexBuffer(0, context->vbh);
+    bgfx::setIndexBuffer(context->ibh);
+
+    bgfx::submit(0, context->program);
 
     bgfx::frame();
 }
